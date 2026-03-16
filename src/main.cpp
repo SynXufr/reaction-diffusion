@@ -10,15 +10,17 @@
 #include <random>
 
 // ==== SIMULATION CONSTANTS ====
-constexpr int SIM_W = 256;
-constexpr int SIM_H = 256;
-constexpr int SCALE = 3;
+constexpr int SIM_W = 512;
+constexpr int SIM_H = 512;
+constexpr int SCALE = 2;
 constexpr int WIN_W = SIM_W * SCALE;
 constexpr int WIN_H = SIM_H * SCALE;
 
 constexpr float Du = 0.16f;
 constexpr float Dv = 0.08f;
 constexpr float DT = 1.0f;
+
+constexpr int STEP_AMT = 8;
 
 // === Starting Params ===
 float F = 0.04f;
@@ -75,6 +77,7 @@ void initGrid() {
 }
 
 void stepSimulation() {
+#pragma omp parallel for schedule(static)
     for (int y = 1; y < SIM_H - 1; y++) {
         for (int x = 1; x < SIM_W - 1; x++) {
             float u = at(gridA, x, y).u;
@@ -142,14 +145,14 @@ int main() {
         }
 
         // --- Parameter tweaking ---
-        float step = 0.001f;
+        float step = 0.0001f;
         if (IsKeyDown(KEY_UP)) F += step;
         if (IsKeyDown(KEY_DOWN)) F -= step;
         if (IsKeyDown(KEY_RIGHT)) K += step;
         if (IsKeyDown(KEY_LEFT)) K -= step;
 
         // run multiple steps per frame for speed
-        for (int i = 0; i < 16; i++) {
+        for (int i = 0; i < STEP_AMT; i++) {
             stepSimulation();
         }
 

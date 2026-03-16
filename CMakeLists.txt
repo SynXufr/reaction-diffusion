@@ -11,10 +11,12 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 find_package(raylib REQUIRED)
+find_package(OpenMP REQUIRED)
 
 add_executable(reaction_diffusion src/main.cpp)
 
 target_link_libraries(reaction_diffusion PRIVATE raylib)
+target_link_libraries(reaction_diffusion PRIVATE raylib OpenMP::OpenMP_CXX)
 
 target_compile_options(reaction_diffusion PRIVATE
         $<$<CONFIG:Debug>:-g -O0 -Wall -Wextra>
