@@ -1,0 +1,52 @@
+version: '3'
+
+vars:
+  BUILD_DIR_DEBUG: build/debug
+  BUILD_DIR_RELEASE: build/release
+  EXE_DEBUG: "{{.BUILD_DIR_DEBUG}}/reaction_diffusion"
+  EXE_RELEASE: "{{.BUILD_DIR_RELEASE}}/reaction_diffusion"
+
+tasks:
+  default:
+    cmds:
+      - task: run
+
+  configure:
+    desc: Configure CMake (debug)
+    cmds:
+      - cmake -B {{.BUILD_DIR_DEBUG}} -G Ninja -DCMAKE_BUILD_TYPE=Debug
+    sources:
+      - CMakeLists.txt
+
+  configure-release:
+    desc: Configure CMake (release, optimized)
+    cmds:
+      - cmake -B {{.BUILD_DIR_RELEASE}} -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+  build:
+    desc: Build the project
+    deps: [configure]
+    cmds:
+      - cmake --build {{.BUILD_DIR_DEBUG}}
+    sources:
+      - src/**/*.cpp
+      - src/**/*.h
+
+  run:
+    desc: Build and run
+    deps: [build]
+    cmds:
+      - ./{{.EXE_DEBUG}}
+
+  release:
+    desc: Build optimized and run
+    cmds:
+      - task: configure-release
+      - cmake --build {{.BUILD_DIR_RELEASE}}
+      - ./{{.EXE_RELEASE}}
+
+  clean:
+    desc: Remove build artifacts
+    cmds:
+      - rm -rf {{.BUILD_DIR_DEBUG}}
+      - rm -rf {{.BUILD_DIR_RELEASE}}
