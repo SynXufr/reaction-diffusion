@@ -74,33 +74,24 @@ void initGrid() {
     }
 }
 
-std::vector<float> laplacian(int x, int y) {
-    std::vector<float> lapUV(2);
-    Cell c = at(gridA, x, y);
-
-    lapUV[0] = at(gridA, x - 1, y).u + at(gridA, x + 1, y).u
-               + at(gridA, x, y - 1).u + at(gridA, x, y + 1).u
-               - 4 * c.u;
-
-    lapUV[1] = at(gridA, x - 1, y).v + at(gridA, x + 1, y).v
-               + at(gridA, x, y - 1).v + at(gridA, x, y + 1).v
-               - 4 * c.v;
-
-    return lapUV;
-}
-
 void stepSimulation() {
     for (int y = 1; y < SIM_H - 1; y++) {
         for (int x = 1; x < SIM_W - 1; x++) {
             float u = at(gridA, x, y).u;
             float v = at(gridA, x, y).v;
 
-            auto lapUV = laplacian(x, y);
+            float lapU = at(gridA, x - 1, y).u + at(gridA, x + 1, y).u
+                         + at(gridA, x, y - 1).u + at(gridA, x, y + 1).u
+                         - 4 * at(gridA, x, y).u;
+
+            float lapV = at(gridA, x - 1, y).v + at(gridA, x + 1, y).v
+                         + at(gridA, x, y - 1).v + at(gridA, x, y + 1).v
+                         - 4 * at(gridA, x, y).v;
 
             float uvv = u * v * v;
 
-            at(gridB, x, y).u = u + DT * (Du * lapUV[0] - uvv + F * (1.0f - u));
-            at(gridB, x, y).v = v + DT * (Dv * lapUV[1] + uvv - v * (F + K));
+            at(gridB, x, y).u = u + DT * (Du * lapU - uvv + F * (1.0f - u));
+            at(gridB, x, y).v = v + DT * (Dv * lapV + uvv - v * (F + K));
 
             at(gridB, x, y).u = std::clamp(at(gridB, x, y).u, 0.0f, 1.0f);
             at(gridB, x, y).v = std::clamp(at(gridB, x, y).v, 0.0f, 1.0f);
