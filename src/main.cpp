@@ -21,8 +21,12 @@ constexpr float Dv = 0.08f;
 constexpr float DT = 1.0f;
 
 // === Starting Params ===
-float F = 0.035f;
-float K = 0.065f;
+float F = 0.04f;
+float K = 0.06f;
+
+// === nice combinations ===
+// Standard: F = 0.035 K = 0.065
+// Flower: F = 0.04 K = 0.06
 
 // ==== STRUCTS ====
 struct Cell {
@@ -54,7 +58,7 @@ void initGrid() {
     std::mt19937 rng(std::random_device{}());
     std::uniform_real_distribution<float> dist(0.0f, 0.02f);
 
-    for (auto &c : gridA) {
+    for (auto &c: gridA) {
         c.u = 1.0f + dist(rng);
         c.v = dist(rng);
     }
@@ -107,8 +111,15 @@ void stepSimulation() {
 
 /// Map v in [0,1] to a color (simple grayscale -- later palette)
 Color valueToColor(float v) {
-    auto c = static_cast<unsigned char>(v * 255.0f);
-    return {c, c, c, 255};
+    Color a = {90, 0, 0, 255};
+    Color b = {255, 255, 255, 255};
+
+    return {
+        static_cast<unsigned char>(a.r + v * (b.r - a.r)),
+        static_cast<unsigned char>(a.g + v * (b.g - a.g)),
+        static_cast<unsigned char>(a.b + v * (b.b - a.b)),
+        255
+    };
 }
 
 int main() {
@@ -122,6 +133,30 @@ int main() {
     UnloadImage(img);
 
     while (!WindowShouldClose()) {
+        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+            Vector2 mouse = GetMousePosition();
+            // convert screen coords back to sim coords
+            int mx = static_cast<int>(mouse.x / SCALE);
+            int my = static_cast<int>(mouse.y / SCALE);
+            int r = 5;
+            for (int dy = -r; dy <= r; dy++) {
+                for (int dx = -r; dx <= r; dx++) {
+                    int sx = mx + dx, sy = my + dy;
+                    if (sx > 0 && sx < SIM_W - 1 && sy > 0 && sy < SIM_H - 1) {
+                        at(gridA, sx, sy).v = 1.0f;
+                        at(gridA, sx, sy).u = 0.0f;
+                    }
+                }
+            }
+        }
+
+        // --- Parameter tweaking ---
+        float step = 0.001f;
+        if (IsKeyDown(KEY_UP)) F += step;
+        if (IsKeyDown(KEY_DOWN)) F -= step;
+        if (IsKeyDown(KEY_RIGHT)) K += step;
+        if (IsKeyDown(KEY_LEFT)) K -= step;
+
         // run multiple steps per frame for speed
         for (int i = 0; i < 16; i++) {
             stepSimulation();
@@ -139,10 +174,13 @@ int main() {
         // Scale up to window size
         DrawTexturePro(
             tex,
-            { 0, 0, static_cast<float>(SIM_W), static_cast<float>(SIM_H) },
-            { 0, 0, static_cast<float>(WIN_W), static_cast<float>(WIN_H) },
-            { 0, 0 }, 0.0f, WHITE
+            {0, 0, static_cast<float>(SIM_W), static_cast<float>(SIM_H)},
+            {0, 0, static_cast<float>(WIN_W), static_cast<float>(WIN_H)},
+            {0, 0}, 0.0f, WHITE
         );
+        char buf[64];
+        snprintf(buf, sizeof(buf), "F: %.4f  K: %.4f", F, K);
+        DrawText(buf, 10, 30, 20, WHITE);
         DrawFPS(10, 10);
         EndDrawing();
     }
