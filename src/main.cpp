@@ -49,7 +49,7 @@ struct Cell {
 std::vector<Cell> gridA(SIM_W * SIM_H);
 std::vector<Cell> gridB(SIM_W * SIM_H);
 float simTime = 0.0f;
-std::atomic<int> pendingSpots{0};
+std::atomic<int> pendingSeeds{0};
 
 constexpr int OSC_PORT = 9000;
 constexpr float F_MIN = 0.0f;
@@ -66,14 +66,21 @@ constexpr int FILL_SAMPLE_STRIDE = 4;
 static int oscFeedHandler(const char *, const char *, lo_arg **argv, int, lo_message, void *) {
     float value = argv[0]->f;
     baseFNorm = std::clamp(value, NORM_MIN, NORM_MAX);
-    pendingSpots.fetch_add(1, std::memory_order_relaxed);
     return 0;
 }
 
 static int oscKillHandler(const char *, const char *, lo_arg **argv, int, lo_message, void *) {
     float value = argv[0]->f;
     baseKNorm = std::clamp(value, NORM_MIN, NORM_MAX);
-    pendingSpots.fetch_add(1, std::memory_order_relaxed);
+    return 0;
+}
+
+static int oscSeedHandler(const char *, const char *, lo_arg **argv, int argc, lo_message, void *) {
+    int count = 1;
+    if (argc > 0) {
+        count = std::clamp(argv[0]->i, 1, 10);
+    }
+    pendingSeeds.fetch_add(count, std::memory_order_relaxed);
     return 0;
 }
 
@@ -107,14 +114,18 @@ float computeFill() {
     return std::clamp(sum / static_cast<float>(count), 0.0f, 1.0f);
 }
 
-void spawnRandomSpot(std::mt19937 &rng) {
+void spawnRandomSeed(std::mt19937 &rng) {
     std::uniform_int_distribution<int> distX(1, SIM_W - 2);
     std::uniform_int_distribution<int> distY(1, SIM_H - 2);
     int mx = distX(rng);
     int my = distY(rng);
-    int r = 4;
+    int r = 6;
+    int r2 = r * r;
     for (int dy = -r; dy <= r; dy++) {
         for (int dx = -r; dx <= r; dx++) {
+            if (dx * dx + dy * dy > r2) {
+                continue;
+            }
             int sx = mx + dx, sy = my + dy;
             if (sx > 0 && sx < SIM_W - 1 && sy > 0 && sy < SIM_H - 1) {
                 at(gridA, sx, sy).v = 1.0f;
@@ -199,6 +210,7 @@ int main() {
     lo_server_thread oscServer = lo_server_thread_new(oscPort.c_str(), nullptr);
     lo_server_thread_add_method(oscServer, "/rd/feed", "f", oscFeedHandler, nullptr);
     lo_server_thread_add_method(oscServer, "/rd/kill", "f", oscKillHandler, nullptr);
+    lo_server_thread_add_method(oscServer, "/rd/seed", "i", oscSeedHandler, nullptr);
     lo_server_thread_start(oscServer);
 
     initGrid();
@@ -225,9 +237,9 @@ int main() {
             }
         }
 
-        int spotsToSpawn = pendingSpots.exchange(0, std::memory_order_relaxed);
-        for (int i = 0; i < spotsToSpawn; i++) {
-            spawnRandomSpot(rng);
+        int seedsToSpawn = pendingSeeds.exchange(0, std::memory_order_relaxed);
+        for (int i = 0; i < seedsToSpawn; i++) {
+            spawnRandomSeed(rng);
         }
 
         // --- Parameter tweaking ---
