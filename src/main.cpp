@@ -176,6 +176,28 @@ static int oscBgColorFloatHandler(const char *, const char *, lo_arg **argv, int
     return 0;
 }
 
+static int oscFgColorDoubleHandler(const char *, const char *, lo_arg **argv, int, lo_message, void *) {
+    fgColor = colorFromFloats(static_cast<float>(argv[0]->d), static_cast<float>(argv[1]->d),
+                              static_cast<float>(argv[2]->d), static_cast<float>(argv[3]->d));
+    return 0;
+}
+
+static int oscBgColorDoubleHandler(const char *, const char *, lo_arg **argv, int, lo_message, void *) {
+    bgColor = colorFromFloats(static_cast<float>(argv[0]->d), static_cast<float>(argv[1]->d),
+                              static_cast<float>(argv[2]->d), static_cast<float>(argv[3]->d));
+    return 0;
+}
+
+static int oscFgColorMidiHandler(const char *, const char *, lo_arg **argv, int, lo_message, void *) {
+    fgColor = {argv[0]->m[0], argv[0]->m[1], argv[0]->m[2], argv[0]->m[3]};
+    return 0;
+}
+
+static int oscBgColorMidiHandler(const char *, const char *, lo_arg **argv, int, lo_message, void *) {
+    bgColor = {argv[0]->m[0], argv[0]->m[1], argv[0]->m[2], argv[0]->m[3]};
+    return 0;
+}
+
 // === FUNCTIONS ===
 
 /// Turns 2D coordinates into a 1D index into flat vector
@@ -325,6 +347,10 @@ int main() {
     lo_server_thread_add_method(oscServer, "/rd/bg", "s", oscBgColorStringHandler, nullptr);
     lo_server_thread_add_method(oscServer, "/rd/fg", "ffff", oscFgColorFloatHandler, nullptr);
     lo_server_thread_add_method(oscServer, "/rd/bg", "ffff", oscBgColorFloatHandler, nullptr);
+    lo_server_thread_add_method(oscServer, "/rd/fg", "dddd", oscFgColorDoubleHandler, nullptr);
+    lo_server_thread_add_method(oscServer, "/rd/bg", "dddd", oscBgColorDoubleHandler, nullptr);
+    lo_server_thread_add_method(oscServer, "/rd/fg", "m", oscFgColorMidiHandler, nullptr);
+    lo_server_thread_add_method(oscServer, "/rd/bg", "m", oscBgColorMidiHandler, nullptr);
     lo_server_thread_start(oscServer);
 
     initGrid();
