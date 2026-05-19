@@ -1,8 +1,8 @@
 [
 {
-  "directory": "/home/sduttlinger/programming/reaction-diffusion/build/debug",
-  "command": "/usr/bin/c++ -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -DUSE_LIBTYPE_SHARED -g -std=gnu++20 -g -O0 -Wall -Wextra -fopenmp -o CMakeFiles/reaction_diffusion.dir/src/main.cpp.o -c /home/sduttlinger/programming/reaction-diffusion/src/main.cpp",
-  "file": "/home/sduttlinger/programming/reaction-diffusion/src/main.cpp",
-  "output": "/home/sduttlinger/programming/reaction-diffusion/build/debug/CMakeFiles/reaction_diffusion.dir/src/main.cpp.o"
+  "directory": "/Users/juliusschmitt/Licht/reaction-diffusion/build/debug",
+  "command": "/nix/store/rwsbw420hcq148hifv7fga6r4g0k1dw8-clang-wrapper-21.1.8/bin/clang++ -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -DUSE_LIBTYPE_SHARED -g -std=gnu++20 -arch arm64 -isysroot /nix/store/rcqgjj8hphkhqark1ibiwfaa7yrzniz3-apple-sdk-14.4/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk -mmacosx-version-min=14.0 -g -O0 -Wall -Wextra -fopenmp=libomp -o CMakeFiles/reaction_diffusion.dir/src/main.cpp.o -c /Users/juliusschmitt/Licht/reaction-diffusion/src/main.cpp",
+  "file": "/Users/juliusschmitt/Licht/reaction-diffusion/src/main.cpp",
+  "output": "/Users/juliusschmitt/Licht/reaction-diffusion/build/debug/CMakeFiles/reaction_diffusion.dir/src/main.cpp.o"
 }
 ]
