@@ -28,6 +28,8 @@ constexpr int STEP_AMT = 32;
 // === Starting Params ===
 float F = 0.04f;
 float K = 0.06f;
+float baseFNorm = 0.4f;
+float baseKNorm = 0.6f;
 constexpr float K_BASE = 0.06f;
 constexpr float K_AMP = 0.02f;
 constexpr float K_FREQ = 0.2f;
@@ -52,16 +54,18 @@ constexpr float F_MIN = 0.0f;
 constexpr float F_MAX = 0.1f;
 constexpr float K_MIN = 0.0f;
 constexpr float K_MAX = 0.1f;
+constexpr float NORM_MIN = 0.0f;
+constexpr float NORM_MAX = 1.0f;
 
 static int oscFeedHandler(const char *, const char *, lo_arg **argv, int, lo_message, void *) {
     float value = argv[0]->f;
-    F = std::clamp(value, F_MIN, F_MAX);
+    baseFNorm = std::clamp(value, NORM_MIN, NORM_MAX);
     return 0;
 }
 
 static int oscKillHandler(const char *, const char *, lo_arg **argv, int, lo_message, void *) {
     float value = argv[0]->f;
-    K = std::clamp(value, K_MIN, K_MAX);
+    baseKNorm = std::clamp(value, NORM_MIN, NORM_MAX);
     return 0;
 }
 
@@ -74,6 +78,19 @@ static int oscKillHandler(const char *, const char *, lo_arg **argv, int, lo_mes
 /// @return Cell reference -> allows read/write to cell
 inline Cell &at(std::vector<Cell> &g, int x, int y) {
     return g[y * SIM_W + x];
+}
+
+inline float lerp(float a, float b, float t) {
+    return a + (b - a) * t;
+}
+
+float computeFill() {
+    float sum = 0.0f;
+    const int total = SIM_W * SIM_H;
+    for (const auto &cell : gridA) {
+        sum += cell.v;
+    }
+    return std::clamp(sum / static_cast<float>(total), 0.0f, 1.0f);
 }
 
 void initGrid() {
@@ -176,11 +193,19 @@ int main() {
         }
 
         // --- Parameter tweaking ---
-        float step = 0.0001f;
-        if (IsKeyDown(KEY_UP)) F += step;
-        if (IsKeyDown(KEY_DOWN)) F -= step;
-        if (IsKeyDown(KEY_RIGHT)) K += step;
-        if (IsKeyDown(KEY_LEFT)) K -= step;
+        float step = 0.01f;
+        if (IsKeyDown(KEY_UP)) baseFNorm += step;
+        if (IsKeyDown(KEY_DOWN)) baseFNorm -= step;
+        if (IsKeyDown(KEY_RIGHT)) baseKNorm += step;
+        if (IsKeyDown(KEY_LEFT)) baseKNorm -= step;
+        baseFNorm = std::clamp(baseFNorm, NORM_MIN, NORM_MAX);
+        baseKNorm = std::clamp(baseKNorm, NORM_MIN, NORM_MAX);
+
+        float fill = computeFill();
+        float fNorm = std::clamp(baseFNorm + (1.0f - fill) * 0.15f, NORM_MIN, NORM_MAX);
+        float kNorm = std::clamp(baseKNorm + fill * 0.15f, NORM_MIN, NORM_MAX);
+        F = lerp(F_MIN, F_MAX, fNorm);
+        K = lerp(K_MIN, K_MAX, kNorm);
 
         // run multiple steps per frame for speed
         for (int i = 0; i < STEP_AMT; i++) {
