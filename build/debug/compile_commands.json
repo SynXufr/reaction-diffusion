@@ -1,0 +1,8 @@
+[
+{
+  "directory": "/home/sduttlinger/programming/reaction-diffusion/build/debug",
+  "command": "/usr/bin/c++ -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -DUSE_LIBTYPE_SHARED -g -std=gnu++20 -g -O0 -Wall -Wextra -fopenmp -o CMakeFiles/reaction_diffusion.dir/src/main.cpp.o -c /home/sduttlinger/programming/reaction-diffusion/src/main.cpp",
+  "file": "/home/sduttlinger/programming/reaction-diffusion/src/main.cpp",
+  "output": "/home/sduttlinger/programming/reaction-diffusion/build/debug/CMakeFiles/reaction_diffusion.dir/src/main.cpp.o"
+}
+]

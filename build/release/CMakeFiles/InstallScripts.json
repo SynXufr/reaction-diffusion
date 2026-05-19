@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/sduttlinger/programming/reaction-diffusion/build/release/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

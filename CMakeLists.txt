@@ -12,11 +12,14 @@ endif()
 
 find_package(raylib REQUIRED)
 find_package(OpenMP REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(LIBLO REQUIRED liblo)
 
 add_executable(reaction_diffusion src/main.cpp)
 
-target_link_libraries(reaction_diffusion PRIVATE raylib)
-target_link_libraries(reaction_diffusion PRIVATE raylib OpenMP::OpenMP_CXX)
+target_include_directories(reaction_diffusion PRIVATE ${LIBLO_INCLUDE_DIRS})
+target_compile_options(reaction_diffusion PRIVATE ${LIBLO_CFLAGS_OTHER})
+target_link_libraries(reaction_diffusion PRIVATE raylib OpenMP::OpenMP_CXX ${LIBLO_LIBRARIES})
 
 target_compile_options(reaction_diffusion PRIVATE
         $<$<CONFIG:Debug>:-g -O0 -Wall -Wextra>

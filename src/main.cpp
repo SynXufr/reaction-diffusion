@@ -5,9 +5,12 @@
 #include <algorithm>
 #include <iostream>
 #include <raylib.h>
+#include <lo/lo.h>
 #include <vector>
 #include <cstdlib>
+#include <cmath>
 #include <random>
+#include <string>
 
 // ==== SIMULATION CONSTANTS ====
 constexpr int SIM_W = 512;
@@ -20,11 +23,14 @@ constexpr float Du = 0.16f;
 constexpr float Dv = 0.08f;
 constexpr float DT = 1.0f;
 
-constexpr int STEP_AMT = 8;
+constexpr int STEP_AMT = 32;
 
 // === Starting Params ===
 float F = 0.04f;
 float K = 0.06f;
+constexpr float K_BASE = 0.06f;
+constexpr float K_AMP = 0.02f;
+constexpr float K_FREQ = 0.2f;
 
 // === nice combinations ===
 // Standard: F = 0.035 K = 0.065
@@ -39,6 +45,25 @@ struct Cell {
 // write to the other grid, then call std::swap
 std::vector<Cell> gridA(SIM_W * SIM_H);
 std::vector<Cell> gridB(SIM_W * SIM_H);
+float simTime = 0.0f;
+
+constexpr int OSC_PORT = 9000;
+constexpr float F_MIN = 0.0f;
+constexpr float F_MAX = 0.1f;
+constexpr float K_MIN = 0.0f;
+constexpr float K_MAX = 0.1f;
+
+static int oscFeedHandler(const char *, const char *, lo_arg **argv, int, lo_message, void *) {
+    float value = argv[0]->f;
+    F = std::clamp(value, F_MIN, F_MAX);
+    return 0;
+}
+
+static int oscKillHandler(const char *, const char *, lo_arg **argv, int, lo_message, void *) {
+    float value = argv[0]->f;
+    K = std::clamp(value, K_MIN, K_MAX);
+    return 0;
+}
 
 // === FUNCTIONS ===
 
@@ -120,6 +145,12 @@ int main() {
     InitWindow(WIN_W, WIN_H, "Reaction-Diffusion");
     SetTargetFPS(60);
 
+    std::string oscPort = std::to_string(OSC_PORT);
+    lo_server_thread oscServer = lo_server_thread_new(oscPort.c_str(), nullptr);
+    lo_server_thread_add_method(oscServer, "/rd/feed", "f", oscFeedHandler, nullptr);
+    lo_server_thread_add_method(oscServer, "/rd/kill", "f", oscKillHandler, nullptr);
+    lo_server_thread_start(oscServer);
+
     initGrid();
 
     Image img = GenImageColor(SIM_W, SIM_H, BLACK);
@@ -153,6 +184,7 @@ int main() {
 
         // run multiple steps per frame for speed
         for (int i = 0; i < STEP_AMT; i++) {
+            simTime += DT;
             stepSimulation();
         }
 
@@ -178,4 +210,6 @@ int main() {
         DrawFPS(10, 10);
         EndDrawing();
     }
+
+    lo_server_thread_free(oscServer);
 }
