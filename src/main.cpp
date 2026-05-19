@@ -12,6 +12,7 @@
 #include <random>
 #include <string>
 #include <atomic>
+#include <cstdint>
 
 // ==== SIMULATION CONSTANTS ====
 constexpr int SIM_W = 512;
@@ -32,6 +33,8 @@ float K = 0.06f;
 float baseFNorm = 0.4f;
 float baseKNorm = 0.6f;
 float maskIntensity = 0.35f;
+Color bgColor = {90, 0, 0, 255};
+Color fgColor = {255, 255, 255, 255};
 constexpr float K_BASE = 0.06f;
 constexpr float K_AMP = 0.02f;
 constexpr float K_FREQ = 0.2f;
@@ -90,6 +93,27 @@ static int oscSeedHandler(const char *, const char *, lo_arg **argv, int argc, l
 static int oscMaskHandler(const char *, const char *, lo_arg **argv, int, lo_message, void *) {
     float value = argv[0]->f;
     maskIntensity = std::clamp(value, NORM_MIN, NORM_MAX);
+    return 0;
+}
+
+static Color colorFromRGBA(uint32_t rgba) {
+    Color color;
+    color.r = static_cast<unsigned char>((rgba >> 24) & 0xFFu);
+    color.g = static_cast<unsigned char>((rgba >> 16) & 0xFFu);
+    color.b = static_cast<unsigned char>((rgba >> 8) & 0xFFu);
+    color.a = static_cast<unsigned char>(rgba & 0xFFu);
+    return color;
+}
+
+static int oscFgColorHandler(const char *, const char *, lo_arg **argv, int, lo_message, void *) {
+    uint32_t rgba = static_cast<uint32_t>(argv[0]->i);
+    fgColor = colorFromRGBA(rgba);
+    return 0;
+}
+
+static int oscBgColorHandler(const char *, const char *, lo_arg **argv, int, lo_message, void *) {
+    uint32_t rgba = static_cast<uint32_t>(argv[0]->i);
+    bgColor = colorFromRGBA(rgba);
     return 0;
 }
 
@@ -216,14 +240,11 @@ void stepSimulation() {
 
 /// Map v in [0,1] to a color (simple grayscale -- later palette)
 Color valueToColor(float v) {
-    Color a = {90, 0, 0, 255};
-    Color b = {255, 255, 255, 255};
-
     return {
-        static_cast<unsigned char>(a.r + v * (b.r - a.r)),
-        static_cast<unsigned char>(a.g + v * (b.g - a.g)),
-        static_cast<unsigned char>(a.b + v * (b.b - a.b)),
-        255
+        static_cast<unsigned char>(bgColor.r + v * (fgColor.r - bgColor.r)),
+        static_cast<unsigned char>(bgColor.g + v * (fgColor.g - bgColor.g)),
+        static_cast<unsigned char>(bgColor.b + v * (fgColor.b - bgColor.b)),
+        static_cast<unsigned char>(bgColor.a + v * (fgColor.a - bgColor.a))
     };
 }
 
@@ -239,6 +260,8 @@ int main() {
     lo_server_thread_add_method(oscServer, "/rd/kill", "f", oscKillHandler, nullptr);
     lo_server_thread_add_method(oscServer, "/rd/seed", "i", oscSeedHandler, nullptr);
     lo_server_thread_add_method(oscServer, "/rd/mask", "f", oscMaskHandler, nullptr);
+    lo_server_thread_add_method(oscServer, "/rd/fg", "i", oscFgColorHandler, nullptr);
+    lo_server_thread_add_method(oscServer, "/rd/bg", "i", oscBgColorHandler, nullptr);
     lo_server_thread_start(oscServer);
 
     initGrid();
@@ -299,7 +322,7 @@ int main() {
         UpdateTexture(tex, pixels.data());
 
         BeginDrawing();
-        ClearBackground(BLACK);
+        ClearBackground(bgColor);
         // Scale up to window size
         DrawTexturePro(
             tex,
