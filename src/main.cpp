@@ -31,6 +31,7 @@ float F = 0.04f;
 float K = 0.06f;
 float baseFNorm = 0.4f;
 float baseKNorm = 0.6f;
+float maskIntensity = 0.35f;
 constexpr float K_BASE = 0.06f;
 constexpr float K_AMP = 0.02f;
 constexpr float K_FREQ = 0.2f;
@@ -62,6 +63,8 @@ constexpr float OSC_GAIN = 1.25f;
 constexpr float FILL_F_GAIN = 0.6f;
 constexpr float FILL_K_GAIN = 0.6f;
 constexpr int FILL_SAMPLE_STRIDE = 4;
+constexpr float FEED_MASK_GAIN = 1.0f;
+constexpr float KILL_MASK_GAIN = 1.0f;
 
 static int oscFeedHandler(const char *, const char *, lo_arg **argv, int, lo_message, void *) {
     float value = argv[0]->f;
@@ -84,6 +87,12 @@ static int oscSeedHandler(const char *, const char *, lo_arg **argv, int argc, l
     return 0;
 }
 
+static int oscMaskHandler(const char *, const char *, lo_arg **argv, int, lo_message, void *) {
+    float value = argv[0]->f;
+    maskIntensity = std::clamp(value, NORM_MIN, NORM_MAX);
+    return 0;
+}
+
 // === FUNCTIONS ===
 
 /// Turns 2D coordinates into a 1D index into flat vector
@@ -97,6 +106,20 @@ inline Cell &at(std::vector<Cell> &g, int x, int y) {
 
 inline float lerp(float a, float b, float t) {
     return a + (b - a) * t;
+}
+
+inline float feedMask(int x, int y) {
+    float cx = (SIM_W - 1) * 0.5f;
+    float cy = (SIM_H - 1) * 0.5f;
+    float dx = static_cast<float>(x) - cx;
+    float dy = static_cast<float>(y) - cy;
+    float dist = std::sqrt(dx * dx + dy * dy);
+    float maxDist = std::sqrt(cx * cx + cy * cy);
+    if (maxDist <= 0.0f) {
+        return 0.0f;
+    }
+    float t = std::clamp(1.0f - dist / maxDist, 0.0f, 1.0f);
+    return t;
 }
 
 float computeFill() {
@@ -176,9 +199,13 @@ void stepSimulation() {
                          - 4 * at(gridA, x, y).v;
 
             float uvv = u * v * v;
+            float mask = feedMask(x, y);
+            float maskCentered = (mask - 0.5f) * 2.0f;
+            float feed = std::clamp(F * (1.0f + FEED_MASK_GAIN * maskCentered * maskIntensity), F_MIN, F_MAX);
+            float kill = std::clamp(K * (1.0f + KILL_MASK_GAIN * maskCentered * maskIntensity), K_MIN, K_MAX);
 
-            at(gridB, x, y).u = u + DT * (Du * lapU - uvv + F * (1.0f - u));
-            at(gridB, x, y).v = v + DT * (Dv * lapV + uvv - v * (F + K));
+            at(gridB, x, y).u = u + DT * (Du * lapU - uvv + feed * (1.0f - u));
+            at(gridB, x, y).v = v + DT * (Dv * lapV + uvv - v * (feed + kill));
 
             at(gridB, x, y).u = std::clamp(at(gridB, x, y).u, 0.0f, 1.0f);
             at(gridB, x, y).v = std::clamp(at(gridB, x, y).v, 0.0f, 1.0f);
@@ -211,6 +238,7 @@ int main() {
     lo_server_thread_add_method(oscServer, "/rd/feed", "f", oscFeedHandler, nullptr);
     lo_server_thread_add_method(oscServer, "/rd/kill", "f", oscKillHandler, nullptr);
     lo_server_thread_add_method(oscServer, "/rd/seed", "i", oscSeedHandler, nullptr);
+    lo_server_thread_add_method(oscServer, "/rd/mask", "f", oscMaskHandler, nullptr);
     lo_server_thread_start(oscServer);
 
     initGrid();
