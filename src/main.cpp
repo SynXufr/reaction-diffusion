@@ -11,6 +11,7 @@
 #include <cmath>
 #include <random>
 #include <string>
+#include <atomic>
 
 // ==== SIMULATION CONSTANTS ====
 constexpr int SIM_W = 512;
@@ -48,6 +49,7 @@ struct Cell {
 std::vector<Cell> gridA(SIM_W * SIM_H);
 std::vector<Cell> gridB(SIM_W * SIM_H);
 float simTime = 0.0f;
+std::atomic<int> pendingSpots{0};
 
 constexpr int OSC_PORT = 9000;
 constexpr float F_MIN = 0.0f;
@@ -59,16 +61,19 @@ constexpr float NORM_MAX = 1.0f;
 constexpr float OSC_GAIN = 1.25f;
 constexpr float FILL_F_GAIN = 0.35f;
 constexpr float FILL_K_GAIN = 0.35f;
+constexpr int FILL_SAMPLE_STRIDE = 4;
 
 static int oscFeedHandler(const char *, const char *, lo_arg **argv, int, lo_message, void *) {
     float value = argv[0]->f;
     baseFNorm = std::clamp(value, NORM_MIN, NORM_MAX);
+    pendingSpots.fetch_add(1, std::memory_order_relaxed);
     return 0;
 }
 
 static int oscKillHandler(const char *, const char *, lo_arg **argv, int, lo_message, void *) {
     float value = argv[0]->f;
     baseKNorm = std::clamp(value, NORM_MIN, NORM_MAX);
+    pendingSpots.fetch_add(1, std::memory_order_relaxed);
     return 0;
 }
 
@@ -89,11 +94,34 @@ inline float lerp(float a, float b, float t) {
 
 float computeFill() {
     float sum = 0.0f;
-    const int total = SIM_W * SIM_H;
-    for (const auto &cell : gridA) {
-        sum += cell.v;
+    int count = 0;
+    for (int y = 0; y < SIM_H; y += FILL_SAMPLE_STRIDE) {
+        for (int x = 0; x < SIM_W; x += FILL_SAMPLE_STRIDE) {
+            sum += at(gridA, x, y).v;
+            count++;
+        }
     }
-    return std::clamp(sum / static_cast<float>(total), 0.0f, 1.0f);
+    if (count == 0) {
+        return 0.0f;
+    }
+    return std::clamp(sum / static_cast<float>(count), 0.0f, 1.0f);
+}
+
+void spawnRandomSpot(std::mt19937 &rng) {
+    std::uniform_int_distribution<int> distX(1, SIM_W - 2);
+    std::uniform_int_distribution<int> distY(1, SIM_H - 2);
+    int mx = distX(rng);
+    int my = distY(rng);
+    int r = 4;
+    for (int dy = -r; dy <= r; dy++) {
+        for (int dx = -r; dx <= r; dx++) {
+            int sx = mx + dx, sy = my + dy;
+            if (sx > 0 && sx < SIM_W - 1 && sy > 0 && sy < SIM_H - 1) {
+                at(gridA, sx, sy).v = 1.0f;
+                at(gridA, sx, sy).u = 0.0f;
+            }
+        }
+    }
 }
 
 void initGrid() {
@@ -165,6 +193,8 @@ int main() {
     InitWindow(WIN_W, WIN_H, "Reaction-Diffusion");
     SetTargetFPS(60);
 
+    std::mt19937 rng(std::random_device{}());
+
     std::string oscPort = std::to_string(OSC_PORT);
     lo_server_thread oscServer = lo_server_thread_new(oscPort.c_str(), nullptr);
     lo_server_thread_add_method(oscServer, "/rd/feed", "f", oscFeedHandler, nullptr);
@@ -195,6 +225,11 @@ int main() {
             }
         }
 
+        int spotsToSpawn = pendingSpots.exchange(0, std::memory_order_relaxed);
+        for (int i = 0; i < spotsToSpawn; i++) {
+            spawnRandomSpot(rng);
+        }
+
         // --- Parameter tweaking ---
         float step = 0.01f;
         if (IsKeyDown(KEY_UP)) baseFNorm += step;
@@ -205,7 +240,7 @@ int main() {
         baseKNorm = std::clamp(baseKNorm, NORM_MIN, NORM_MAX);
 
         float fill = computeFill();
-        float fNorm = std::clamp(baseFNorm * OSC_GAIN + (1.0f - fill) * FILL_F_GAIN, NORM_MIN, NORM_MAX);
+        float fNorm = std::clamp(baseFNorm * OSC_GAIN + fill * FILL_F_GAIN, NORM_MIN, NORM_MAX);
         float kNorm = std::clamp(baseKNorm * OSC_GAIN + fill * FILL_K_GAIN, NORM_MIN, NORM_MAX);
         F = lerp(F_MIN, F_MAX, fNorm);
         K = lerp(K_MIN, K_MAX, kNorm);
