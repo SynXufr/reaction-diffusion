@@ -263,6 +263,27 @@ void spawnRandomSeed(std::mt19937 &rng) {
     }
 }
 
+void spawnRandomAntiseed(std::mt19937 &rng) {
+    std::uniform_int_distribution<int> distX(1, SIM_W - 2);
+    std::uniform_int_distribution<int> distY(1, SIM_H - 2);
+    int mx = distX(rng);
+    int my = distY(rng);
+    int r = 6;
+    int r2 = r * r;
+    for (int dy = -r; dy <= r; dy++) {
+        for (int dx = -r; dx <= r; dx++) {
+            if (dx * dx + dy * dy > r2) {
+                continue;
+            }
+            int sx = mx + dx, sy = my + dy;
+            if (sx > 0 && sx < SIM_W - 1 && sy > 0 && sy < SIM_H - 1) {
+                at(gridA, sx, sy).u = 0.0f;
+                at(gridA, sx, sy).v = 0.0f;
+            }
+        }
+    }
+}
+
 void initGrid() {
     // initialize grid with only U, no V
     // for (auto &c: gridA) { c.u = 1.0, c.v = 0; };
@@ -380,6 +401,7 @@ int main() {
         int seedsToSpawn = pendingSeeds.exchange(0, std::memory_order_relaxed);
         for (int i = 0; i < seedsToSpawn; i++) {
             spawnRandomSeed(rng);
+            spawnRandomAntiseed(rng);
         }
 
         // --- Parameter tweaking ---
