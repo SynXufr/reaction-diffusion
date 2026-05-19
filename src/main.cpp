@@ -13,6 +13,7 @@
 #include <string>
 #include <atomic>
 #include <cstdint>
+#include <cstring>
 
 // ==== SIMULATION CONSTANTS ====
 constexpr int SIM_W = 512;
@@ -105,6 +106,27 @@ static Color colorFromRGBA(uint32_t rgba) {
     return color;
 }
 
+static bool parseHexRGBA(const char *text, uint32_t &out) {
+    if (!text) {
+        return false;
+    }
+    const char *start = text;
+    const char *prefix = std::strchr(text, '(');
+    if (prefix) {
+        start = prefix + 1;
+    }
+    if (start[0] == '0' && (start[1] == 'x' || start[1] == 'X')) {
+        start += 2;
+    }
+    char *end = nullptr;
+    unsigned long value = std::strtoul(start, &end, 16);
+    if (start == end) {
+        return false;
+    }
+    out = static_cast<uint32_t>(value);
+    return true;
+}
+
 static int oscFgColorHandler(const char *, const char *, lo_arg **argv, int, lo_message, void *) {
     uint32_t rgba = static_cast<uint32_t>(argv[0]->i);
     fgColor = colorFromRGBA(rgba);
@@ -114,6 +136,43 @@ static int oscFgColorHandler(const char *, const char *, lo_arg **argv, int, lo_
 static int oscBgColorHandler(const char *, const char *, lo_arg **argv, int, lo_message, void *) {
     uint32_t rgba = static_cast<uint32_t>(argv[0]->i);
     bgColor = colorFromRGBA(rgba);
+    return 0;
+}
+
+static int oscFgColorStringHandler(const char *, const char *, lo_arg **argv, int, lo_message, void *) {
+    uint32_t rgba = 0;
+    const char *text = &argv[0]->s;
+    if (parseHexRGBA(text, rgba)) {
+        fgColor = colorFromRGBA(rgba);
+    }
+    return 0;
+}
+
+static int oscBgColorStringHandler(const char *, const char *, lo_arg **argv, int, lo_message, void *) {
+    uint32_t rgba = 0;
+    const char *text = &argv[0]->s;
+    if (parseHexRGBA(text, rgba)) {
+        bgColor = colorFromRGBA(rgba);
+    }
+    return 0;
+}
+
+static Color colorFromFloats(float r, float g, float b, float a) {
+    Color color;
+    color.r = static_cast<unsigned char>(std::clamp(r, 0.0f, 1.0f) * 255.0f);
+    color.g = static_cast<unsigned char>(std::clamp(g, 0.0f, 1.0f) * 255.0f);
+    color.b = static_cast<unsigned char>(std::clamp(b, 0.0f, 1.0f) * 255.0f);
+    color.a = static_cast<unsigned char>(std::clamp(a, 0.0f, 1.0f) * 255.0f);
+    return color;
+}
+
+static int oscFgColorFloatHandler(const char *, const char *, lo_arg **argv, int, lo_message, void *) {
+    fgColor = colorFromFloats(argv[0]->f, argv[1]->f, argv[2]->f, argv[3]->f);
+    return 0;
+}
+
+static int oscBgColorFloatHandler(const char *, const char *, lo_arg **argv, int, lo_message, void *) {
+    bgColor = colorFromFloats(argv[0]->f, argv[1]->f, argv[2]->f, argv[3]->f);
     return 0;
 }
 
@@ -262,6 +321,10 @@ int main() {
     lo_server_thread_add_method(oscServer, "/rd/mask", "f", oscMaskHandler, nullptr);
     lo_server_thread_add_method(oscServer, "/rd/fg", "i", oscFgColorHandler, nullptr);
     lo_server_thread_add_method(oscServer, "/rd/bg", "i", oscBgColorHandler, nullptr);
+    lo_server_thread_add_method(oscServer, "/rd/fg", "s", oscFgColorStringHandler, nullptr);
+    lo_server_thread_add_method(oscServer, "/rd/bg", "s", oscBgColorStringHandler, nullptr);
+    lo_server_thread_add_method(oscServer, "/rd/fg", "ffff", oscFgColorFloatHandler, nullptr);
+    lo_server_thread_add_method(oscServer, "/rd/bg", "ffff", oscBgColorFloatHandler, nullptr);
     lo_server_thread_start(oscServer);
 
     initGrid();
