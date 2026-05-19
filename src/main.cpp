@@ -59,8 +59,8 @@ constexpr float K_MAX = 0.12f;
 constexpr float NORM_MIN = 0.0f;
 constexpr float NORM_MAX = 1.0f;
 constexpr float OSC_GAIN = 1.25f;
-constexpr float FILL_F_GAIN = 0.35f;
-constexpr float FILL_K_GAIN = 0.35f;
+constexpr float FILL_F_GAIN = 0.6f;
+constexpr float FILL_K_GAIN = 0.6f;
 constexpr int FILL_SAMPLE_STRIDE = 4;
 
 static int oscFeedHandler(const char *, const char *, lo_arg **argv, int, lo_message, void *) {
