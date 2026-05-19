@@ -199,7 +199,7 @@ void stepSimulation() {
                          - 4 * at(gridA, x, y).v;
 
             float uvv = u * v * v;
-            float mask = feedMask(x, y);
+            float mask = 1.0f - feedMask(x, y);
             float maskCentered = (mask - 0.5f) * 2.0f;
             float feed = std::clamp(F * (1.0f + FEED_MASK_GAIN * maskCentered * maskIntensity), F_MIN, F_MAX);
             float kill = std::clamp(K * (1.0f + KILL_MASK_GAIN * maskCentered * maskIntensity), K_MIN, K_MAX);
