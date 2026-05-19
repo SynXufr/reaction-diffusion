@@ -51,11 +51,14 @@ float simTime = 0.0f;
 
 constexpr int OSC_PORT = 9000;
 constexpr float F_MIN = 0.0f;
-constexpr float F_MAX = 0.1f;
+constexpr float F_MAX = 0.12f;
 constexpr float K_MIN = 0.0f;
-constexpr float K_MAX = 0.1f;
+constexpr float K_MAX = 0.12f;
 constexpr float NORM_MIN = 0.0f;
 constexpr float NORM_MAX = 1.0f;
+constexpr float OSC_GAIN = 1.25f;
+constexpr float FILL_F_GAIN = 0.35f;
+constexpr float FILL_K_GAIN = 0.35f;
 
 static int oscFeedHandler(const char *, const char *, lo_arg **argv, int, lo_message, void *) {
     float value = argv[0]->f;
@@ -202,8 +205,8 @@ int main() {
         baseKNorm = std::clamp(baseKNorm, NORM_MIN, NORM_MAX);
 
         float fill = computeFill();
-        float fNorm = std::clamp(baseFNorm + (1.0f - fill) * 0.15f, NORM_MIN, NORM_MAX);
-        float kNorm = std::clamp(baseKNorm + fill * 0.15f, NORM_MIN, NORM_MAX);
+        float fNorm = std::clamp(baseFNorm * OSC_GAIN + (1.0f - fill) * FILL_F_GAIN, NORM_MIN, NORM_MAX);
+        float kNorm = std::clamp(baseKNorm * OSC_GAIN + fill * FILL_K_GAIN, NORM_MIN, NORM_MAX);
         F = lerp(F_MIN, F_MAX, fNorm);
         K = lerp(K_MIN, K_MAX, kNorm);
 
